@@ -1,7 +1,6 @@
-import serial
 import logging
-import sys
-from lib.sim900.gsm import *
+from test_shared import initializeUartPort, initializeLogs
+from lib.sim900.gsm import SimGsm
 
 COMPORT_NAME            = "com22"
 
@@ -16,31 +15,11 @@ def main():
 
     :return: true if everything was OK, otherwise returns false
     """
-    #adding port object
-    port = serial.Serial()
-
-    #tuning port object
-    port.port         = COMPORT_NAME
-    port.baudrate     = 57600
-    port.bytesize     = serial.EIGHTBITS
-    port.parity       = serial.PARITY_NONE
-    port.stopbits     = serial.STOPBITS_ONE
-    port.timeout      = 0
-
-    #initializing logging formatter
-    formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s')
+    #adding & initializing port object
+    port = initializeUartPort(portName=COMPORT_NAME)
 
     #initializing logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(LOGGER_LEVEL)
-
-    #initializing console handler for logging
-    consoleLogger = logging.StreamHandler(sys.stdout)
-    consoleLogger.setLevel(CONSOLE_LOGGER_LEVEL)
-    consoleLogger.setFormatter(formatter)
-
-    #adding console appender
-    logger.addHandler(consoleLogger)
+    (formatter, logger, consoleLogger,) = initializeLogs(LOGGER_LEVEL, CONSOLE_LOGGER_LEVEL)
 
     #class for general functions
     gsm = SimGsm(port, logger)

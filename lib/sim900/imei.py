@@ -31,7 +31,7 @@ Copyright (C) 2014-2015 Bohdan Danishevsky ( dbn@aminis.com.ua ) All Rights Rese
 
 from lib.sim900.gsm import SimGsm
 
-class ImeiRetriever(SimGsm):
+class SimImeiRetriever(SimGsm):
     def __init__(self, port, logger):
         SimGsm.__init__(self, port, logger)
 

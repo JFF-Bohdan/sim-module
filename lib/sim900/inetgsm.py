@@ -31,14 +31,14 @@ Copyright (C) 2014-2015 Bohdan Danishevsky ( dbn@aminis.com.ua ) All Rights Rese
 
 from lib.sim900.gsm import *
 
-class InetGSMConnection:
+class SimInetGSMConnection:
     inetUnknown     = -1
     inetConnecting  = 0
     inetConnected   = 1
     inetClosing     = 2
     inetClosed      = 3
 
-class InetGSM(SimGsm):
+class SimInetGSM(SimGsm):
     def __init__(self, port, logger):
         SimGsm.__init__(self, port, logger)
 
@@ -46,7 +46,7 @@ class InetGSM(SimGsm):
 
         #user agent
         self.__userAgent          = "Aminis SIM-900 module client (version 0.1)"
-        self.__connectionState    = InetGSMConnection.inetUnknown
+        self.__connectionState    = SimInetGSMConnection.inetUnknown
         self.__httpResult         = 0
         self.__httpResponse       = None
 
@@ -121,16 +121,16 @@ class InetGSM(SimGsm):
 
         self.__ip = None
         if response[1] == "0":
-            self.__connectionState = InetGSMConnection.inetConnecting
+            self.__connectionState = SimInetGSMConnection.inetConnecting
         elif response[1] == "1":
-            self.__connectionState = InetGSMConnection.inetConnected
+            self.__connectionState = SimInetGSMConnection.inetConnected
             self.__ip              = response[2].strip("\"").strip()
         elif response[1] == "2":
-            self.__connectionState = InetGSMConnection.inetClosing
+            self.__connectionState = SimInetGSMConnection.inetClosing
         elif response[1] == "3":
-            self.__connectionState = InetGSMConnection.inetClosed
+            self.__connectionState = SimInetGSMConnection.inetClosed
         else:
-            self.__connectionState = InetGSMConnection.inetUnknown
+            self.__connectionState = SimInetGSMConnection.inetUnknown
 
         return True
 
@@ -150,7 +150,7 @@ class InetGSM(SimGsm):
             return False
 
         #going out if already connected
-        if self.connectionState == InetGSMConnection.inetConnected:
+        if self.connectionState == SimInetGSMConnection.inetConnected:
             return True
 
         #Closing the GPRS PDP context. We dont care of result
@@ -192,7 +192,7 @@ class InetGSM(SimGsm):
 
         #checking current GPRS connection state
         if self.checkGprsBearer(bearerNumber):
-            if self.connectionState == InetGSMConnection.inetClosed:
+            if self.connectionState == SimInetGSMConnection.inetClosed:
                 return True
 
         #disconnecting GPRS connection for given bearer number

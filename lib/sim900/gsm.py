@@ -180,6 +180,85 @@ class SimGsmSerialPortHandler(AminisLastErrorHolderWithLogging):
         except:
             self.setError("error flushing")
 
+    def readFixedSzieByteArray(self, bytesCount, maxWaitTime):
+        start     = time.time()
+        buffer    = bytearray()
+        try:
+            while True:
+                #checking for timeout
+                if timeDelta(start) >= maxWaitTime:
+                    return None
+
+                receivedBytesQty = 0
+                while True:
+                    bytesToRead = 10 if ((len(buffer) - bytesCount) >= 10) else 1
+                    b = self.__serial.read(bytesToRead)
+
+                    if (b is None) or (len(b) == 0):
+                        break
+
+                    buffer += bytearray(b)
+                    receivedBytesQty += len(b)
+
+                    if len(buffer) == bytesCount:
+                        return buffer
+
+                #if we have nothing in input - let's go sleep for some time
+                if receivedBytesQty == 0:
+                    time.sleep(0.003)
+
+            #comming there by timeout
+            return None
+
+        except Exception as e:
+            self.setError(e)
+            return None
+        except:
+            self.setError("reading error...")
+            return None
+
+
+    def readNullTerminatedLn(self, maxWaitTime = 5000, codepage = "ascii"):
+        start     = time.time()
+
+        start     = time.time()
+        buffer    = bytearray()
+        try:
+            while True:
+                #checking for timeout
+                if timeDelta(start) >= maxWaitTime:
+                    return None
+
+                receivedBytesQty = 0
+                while True:
+                    b = self.__serial.read(1)
+
+                    if (b is None) or (len(b) == 0):
+                        break
+
+                    #checking that we have NULL symbol in
+                    idx = b.find(0x00)
+                    if idx != -1:
+                        buffer.extend(b[:idx])
+                        return buffer.decode(codepage)
+
+                    buffer += bytearray(b)
+                    receivedBytesQty += len(b)
+
+                #if we have nothing in input - let's go sleep for some time
+                if receivedBytesQty == 0:
+                    time.sleep(0.003)
+
+            #comming there by timeout
+            return None
+
+        except Exception as e:
+            self.setError(e)
+            return None
+        except:
+            self.setError("reading error...")
+            return None
+
     def readLn(self, maxWaitTime = 5000, codepage = "ascii"):
         """
         Returns text string from SIM module. Can return even empty strings.
@@ -206,14 +285,17 @@ class SimGsmSerialPortHandler(AminisLastErrorHolderWithLogging):
                     buffer += bytearray(b)
                     receivedBytesQty += len(b)
 
-                    #checking for line end symbols
-                    line = buffer.decode(codepage)
-                    if '\n' in line:
-                        return line.strip()
+                    if codepage is not None:
+                        #checking for line end symbols
+                        line = buffer.decode(codepage)
+                        if '\n' in line:
+                            return line.strip()
+                    elif ord('\n') in buffer:
+                        return buffer
 
                 #if we have nothing in input - let's go sleep for some time
                 if receivedBytesQty == 0:
-                    time.sleep(0.003)
+                    time.sleep(0)
 
             #comming there by timeout
             return None
@@ -231,7 +313,7 @@ class SimGsmSerialPortHandler(AminisLastErrorHolderWithLogging):
         retrieving
 
         :param maxWaitTime: max wait time for receiving
-        :param codepage: code page of result string
+        :param codepage: code page of result string, if it's a None - will return a bytearray
         :return: received string
         """
         ret     = None

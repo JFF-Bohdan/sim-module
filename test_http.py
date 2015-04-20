@@ -1,9 +1,5 @@
-import serial
-import logging
-import sys
-from lib.sim900.gsm import *
-from lib.sim900.imei import *
-from lib.sim900.inetgsm import *
+from test_shared import *
+from lib.sim900.inetgsm import SimInetGSM
 
 COMPORT_NAME            = "com22"
 
@@ -18,67 +14,16 @@ def main():
     :return: true if everything was OK, otherwise returns false
     """
 
-    #adding port object
-    port = serial.Serial()
-
-    #tuning port object
-    port.port         = COMPORT_NAME
-    port.baudrate     = 57600
-    port.bytesize     = serial.EIGHTBITS
-    port.parity       = serial.PARITY_NONE
-    port.stopbits     = serial.STOPBITS_ONE
-    port.timeout      = 0
-
-    #initializing logging formatter
-    formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s')
+    #adding & initializing port object
+    port = initializeUartPort(portName=COMPORT_NAME)
 
     #initializing logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(LOGGER_LEVEL)
+    (formatter, logger, consoleLogger,) = initializeLogs(LOGGER_LEVEL, CONSOLE_LOGGER_LEVEL)
 
-    #initializing console handler for logging
-    consoleLogger = logging.StreamHandler(sys.stdout)
-    consoleLogger.setLevel(CONSOLE_LOGGER_LEVEL)
-    consoleLogger.setFormatter(formatter)
+    #making base operations
+    (gsm, imei) = baseOperations(port, logger)
 
-    #adding console appender
-    logger.addHandler(consoleLogger)
-
-    #class for general functions
-    gsm = SimGsm(port, logger)
-
-    #opening COM port
-    logger.info("opening port")
-    if not gsm.openPort():
-        logger.error("error opening port: {0}".format(gsm.errorText))
-        return False
-
-    #initializing session with SIM900
-    logger.info("initializing SIM900 session")
-    if not gsm.begin(5):
-        logger.error("error initializing session: {0}".format(gsm.errorText))
-        return False
-
-    logger.debug("checking PIN state")
-    if gsm.pinState != SimGsmPinRequestState.NOPINNEEDED:
-        logger.debug("PIN needed, entering")
-        if gsm.pinState == SimGsmPinRequestState.SIM_PIN:
-            if not gsm.enterPin("1111"):
-                logger.error("error entering PIN")
-    else:
-        logger.debug("PIN OK")
-
-    #retrieving IMEI
-    sim = ImeiRetriever(port, logger)
-    logger.info("retrieving IMEI")
-    imei = sim.getIMEI()
-    if imei is None:
-        logger.error("error retrieving IMEI: {0}".format(sim.errorText))
-        return False
-
-    logger.info("IMEI = {0}".format(imei))
-
-    inet = InetGSM(port, logger)
+    inet = SimInetGSM(port, logger)
 
     logger.info("attaching GPRS")
     if not inet.attachGPRS("internet", "", "", 1):

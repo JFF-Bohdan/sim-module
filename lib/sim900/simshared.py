@@ -57,3 +57,6 @@ class AminisLastErrorHolderWithLogging(AminisLastErrorHolder):
     def setWarn(self, value):
         AminisLastErrorHolder.setError(self, value)
         self.logger.warn(value)
+
+def noneToEmptyString(value):
+    return '' if value is None else value
