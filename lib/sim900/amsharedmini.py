@@ -34,3 +34,23 @@ def splitAndFilter(value, separator):
         ret += [item]
 
     return ret
+
+def isFloat(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+def strToFloat(value):
+    value = str(value).strip()
+
+    if len(value) == 0:
+        return None
+
+    value = value.replace(",", ".")
+
+    try:
+        return float(value)
+    except ValueError:
+        return None
