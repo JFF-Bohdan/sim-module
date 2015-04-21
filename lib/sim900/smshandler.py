@@ -34,17 +34,17 @@ from lib.sim900.simshared import *
 import binascii
 
 class SimSmsPduCompiler(AminisLastErrorHolder):
-    def __init__(self):
+    def __init__(self, smsCenterNumber="", targetPhoneNumber="", smsTextMessage=""):
         AminisLastErrorHolder.__init__(self)
 
         #sms center number
-        self.__smsCenterNumber      = ""
+        self.__smsCenterNumber      = self.__preprocessPhoneNumber(smsCenterNumber)
 
         #sms recipient number
-        self.__smsRecipientNumber   = ""
+        self.__smsRecipientNumber   = self.__preprocessPhoneNumber(targetPhoneNumber)
 
         #sms text
-        self.smsText                = ""
+        self.smsText                = smsTextMessage
 
         self.flashMessage           = False
 
@@ -70,6 +70,15 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         """
         return self.__smsCenterNumber
 
+
+    @staticmethod
+    def __preprocessPhoneNumber(value):
+        value   = noneToEmptyString(value)
+        value   = str(value).strip()
+        value   = value.replace(" ", "")
+
+        return value.replace("\t", "")
+
     @smsCenterNumber.setter
     def smsCenterNumber(self, value):
         """
@@ -78,9 +87,7 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         :param value: new SMS center number
         :return: nothing
         """
-        self.__smsCenterNumber = noneToEmptyString(value).strip()
-        self.__smsCenterNumber = str(self.__smsCenterNumber).replace(" ", "")
-        self.__smsCenterNumber = str(self.__smsCenterNumber).replace("\t", "")
+        self.__smsCenterNumber = self.__preprocessPhoneNumber(value)
 
     @property
     def smsRecipientNumber(self):
@@ -99,9 +106,7 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         :param value: SMS recipient number
         :return: nothig
         """
-        self.__smsRecipientNumber = noneToEmptyString(value).strip()
-        self.__smsRecipientNumber = str(self.__smsRecipientNumber).replace(" ", "")
-        self.__smsRecipientNumber = str(self.__smsRecipientNumber).replace("\t", "")
+        self.__smsRecipientNumber = self.__preprocessPhoneNumber(value)
 
     @staticmethod
     def __clientPhoneNumberLength(number):
