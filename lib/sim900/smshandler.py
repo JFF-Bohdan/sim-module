@@ -79,6 +79,8 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         :return: nothing
         """
         self.__smsCenterNumber = noneToEmptyString(value).strip()
+        self.__smsCenterNumber = str(self.__smsCenterNumber).replace(" ", "")
+        self.__smsCenterNumber = str(self.__smsCenterNumber).replace("\t", "")
 
     @property
     def smsRecipientNumber(self):
@@ -98,6 +100,8 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         :return: nothig
         """
         self.__smsRecipientNumber = noneToEmptyString(value).strip()
+        self.__smsRecipientNumber = str(self.__smsRecipientNumber).replace(" ", "")
+        self.__smsRecipientNumber = str(self.__smsRecipientNumber).replace("\t", "")
 
     @staticmethod
     def __clientPhoneNumberLength(number):
