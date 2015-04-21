@@ -366,7 +366,7 @@ class SimGsmSmsHandler(SimGsm):
 
         for cmd in tuneCommands:
             if not self.execSimpleOkCommand(commandText=cmd[0], timeout=cmd[1]):
-                print("BB: {0}".format(cmd[0]))
+                self.setError("error tuning module for sms sending")
                 return False
 
         for i in range(numberOfAttempts):
@@ -379,7 +379,6 @@ class SimGsmSmsHandler(SimGsm):
             if (ret is None) or (self.lastResult != ">"):
                 continue
 
-            print("applying data")
             ret = self.commandAndStdResult(
                 "{0}\x1a".format(sca + pdu),
                 10000,
