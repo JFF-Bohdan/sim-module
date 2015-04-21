@@ -15,10 +15,14 @@ TARGET_PHONE_NUMBER     = "+38 097 123 45 67"
 # SMS_CENTER_NUMBER       = "+1 050 123 45 67"
 SMS_CENTER_NUMBER       = ""
 
-def sendSms(sms, pdu, logger):
+def printScaPlusPdu(pdu, logger):
     #printing SCA+PDU just for debug
     (sca, pdu) = pdu.compile()
     logger.info("sendSms(): sca + pdu = \"{0}\"".format(sca + pdu))
+
+def sendSms(sms, pdu, logger):
+    printScaPlusPdu(pdu, logger)
+
 
     if not sms.sendPduMessage(pdu, 1):
         logger.error("error sending SMS: {0}".format(sms.errorText))
