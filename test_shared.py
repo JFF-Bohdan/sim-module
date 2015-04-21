@@ -51,13 +51,13 @@ def baseOperations(port, logger):
     logger.info("opening port")
     if not gsm.openPort():
         logger.error("error opening port: {0}".format(gsm.errorText))
-        return False
+        return None
 
     #initializing session with SIM900
     logger.info("initializing SIM900 session")
     if not gsm.begin(5):
         logger.error("error initializing session: {0}".format(gsm.errorText))
-        return False
+        return None
 
     logger.debug("checking PIN state")
     if gsm.pinState != SimGsmPinRequestState.NOPINNEEDED:
@@ -74,7 +74,7 @@ def baseOperations(port, logger):
     imei = sim.getIMEI()
     if imei is None:
         logger.error("error retrieving IMEI: {0}".format(sim.errorText))
-        return False
+        return None
 
     logger.info("IMEI = {0}".format(imei))
 

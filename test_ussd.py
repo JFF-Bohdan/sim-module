@@ -54,7 +54,11 @@ def main():
     (formatter, logger, consoleLogger,) = initializeLogs(LOGGER_LEVEL, CONSOLE_LOGGER_LEVEL)
 
     #making base operations
-    (gsm, imei) = baseOperations(port, logger)
+    d = baseOperations(port, logger)
+    if d is None:
+        return False
+
+    (gsm, imei) = d
 
     ussd = SimUssdHandler(port, logger)
     logger.info("running USSD code")
