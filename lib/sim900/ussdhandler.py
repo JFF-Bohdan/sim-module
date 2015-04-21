@@ -21,7 +21,7 @@
 #SOFTWARE.
 
 """
-This file is part of sim-module package. SMS processing classes and functions.
+This file is part of sim-module package. USSD requests processing classes and functions.
 
 sim-module package allows to communicate with SIM 900 modules: send SMS, make HTTP requests and use other
 functions of SIM 900 modules.
@@ -124,40 +124,3 @@ class SimUssdHandler(SimGsm):
 
         return True
 
-class SimGsmSmsHandler(SimGsm):
-    def __init__(self, port, logger):
-        SimGsm.__init__(self, port, logger)
-
-    def sendSms(self, phoneNumber, messageText, numberOfAttempts = 3):
-        tuneCommands = [
-            ["AT+CMGS=?",       1000],
-            ["AT+CMGF=1",       1000]
-        ]
-
-        self.logger.debug("initializing SIM module for SMS sending")
-        for cmd in tuneCommands:
-            if not self.execSimpleOkCommand(commandText=cmd[0],timeout=cmd[1]):
-                return False
-
-        for i in range(numberOfAttempts):
-            ret = self.commandAndStdResult(
-                "AT+CMGS=\"{0}\"".format(phoneNumber),
-                1000,
-                [">"]
-            )
-
-            if (ret is None) or (self.lastResult != ">"):
-                continue
-
-            ret = self.commandAndStdResult(
-                "{0}\n\x1a".format(messageText),
-                10000,
-                ["ERROR", "OK"]
-            )
-            if (ret is None) or (self.lastResult not in ["OK"]):
-                continue
-
-            return True
-
-        self.setError("error sending sms...")
-        return False
