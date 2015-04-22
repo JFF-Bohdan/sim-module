@@ -48,6 +48,9 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
 
         self.flashMessage           = False
 
+        #validation period for message
+        self.__validationPeriod     = "AA" #4 days
+
     def clear(self):
         """
         Clears all internal buffers
@@ -60,6 +63,8 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         self.__smsRecipientNumber   = ""
         self.smsText                = ""
         self.flashMessage           = False
+
+        self.__validationPeriod     = "AA"
 
     @property
     def smsCenterNumber(self):
@@ -227,7 +232,86 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         :return:
         """
         # TP- VP — TP-Validity-Period/ "AA" means 4 days. Note: This  octet is optional, see bits 4 and 3 of the first octet
-        return "AA"
+        return self.__validationPeriod
+
+    def setValidationPeriodInMinutes(self, value):
+        """
+        Set message validation period in minutes interval. Up to 12 hours.
+
+        :param value:  minutes count
+        :return: true if everything is OK, otherwise returns false
+        """
+
+        #0-143 	(TP-VP + 1) x 5 minutes 	5, 10, 15 minutes ... 11:55, 12:00 hours
+        count = value // 5
+
+        if count > 143:
+            self.setError("Wrong interval, must be between 1 and 720 minutes")
+            return False
+
+        self.__validationPeriod = self.__byteToHex(count)
+        return True
+
+    def setValidationPeriodInHours(self, value):
+        """
+        Set validation period in hours (up to 24 hours) with 0.5 hour step
+
+        :param value: hours count (float), must be >= 12 and <= 24
+        :return: true if everything is OK, otherwise returns false
+        """
+        #144-167 	(12 + (TP-VP - 143) / 2 ) hours 	12:30, 13:00, ... 23:30, 24:00 hours
+
+        if (value < 12) or (value > 24):
+            self.setError("Value must be between 12 and 24 hours")
+            return False
+
+        value = value - 12
+
+        count = int(value)
+        if (value - count) >= 0.5:
+            count = count*2 + 1
+        else:
+            count = count*2
+
+        if count>23:
+            count = 23
+
+        self.__validationPeriod = self.__byteToHex(count + 144)
+        return True
+
+    def setDaysValidationPeriod(self, value):
+        """
+        Can set message validation period in days (2-30 days)
+
+        :param value: days count (must be >=2 and <=30)
+        :return: true when value is OK, otherwise returns false
+        """
+
+        #168-196 (TP-VP - 166) days 	2, 3, 4, ... 30 days
+
+        if (value < 2) or (value > 30):
+            self.setError("Bad interval, value must be >= 2 days and <= 30 days")
+            return False
+
+        self.__validationPeriod = self.__byteToHex(value + 166)
+        return True
+
+    def setValidationPeriodInWeeks(self, value):
+        """
+        Set validation period in weeks (from 5 to 63 weeks)
+
+        :param value: weeks count (must be >=5 and <= 63)
+        :return: true if everything is OK, otherwise returns false
+        """
+
+        # 197-255 	(TP-VP - 192) weeks 	5, 6, 7, ... 63 weeks
+        if (value < 5) or (value > 63):
+            self.setError("Wrong value, value must be >= 5 and <= 63 weeks")
+            return False
+
+        value = value - 5
+        self.__validationPeriod = self.__byteToHex(value + 197)
+        return True
 
     def __compileTpdu(self):
         """
@@ -302,6 +386,7 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
 
         :return: SMS request in PDU format
         """
+
         return (self.__compileScaPart(), self.__compileTpdu())
 
     @staticmethod
