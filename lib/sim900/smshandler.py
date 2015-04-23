@@ -32,6 +32,7 @@ Copyright (C) 2014-2015 Bohdan Danishevsky ( dbn@aminis.com.ua ) All Rights Rese
 from lib.sim900.gsm import SimGsm
 from lib.sim900.simshared import *
 import binascii
+import random
 
 class SimSmsPduCompiler(AminisLastErrorHolder):
     def __init__(self, smsCenterNumber="", targetPhoneNumber="", smsTextMessage=""):
@@ -49,7 +50,7 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         self.flashMessage           = False
 
         #validation period for message
-        self.__validationPeriod     = "AA" #4 days
+        self.__validationPeriod     = None
 
     def clear(self):
         """
@@ -64,7 +65,7 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         self.smsText                = ""
         self.flashMessage           = False
 
-        self.__validationPeriod     = "AA"
+        self.__validationPeriod     = None
 
     @property
     def smsCenterNumber(self):
@@ -74,7 +75,6 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         :return: returns SMS center number
         """
         return self.__smsCenterNumber
-
 
     @staticmethod
     def __preprocessPhoneNumber(value):
@@ -165,20 +165,29 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         sca = SimSmsPduCompiler.__byteToHex ( ((len(smsCenterNumber) // 2) + 1)) + "91" + smsCenterNumber
         return sca
 
-    def __canUse7BitsEncoding(self):
+    def __canUse7BitsEncoding(self, text = None):
         """
         Checks that message can be encoded in 7 bits.
 
-        :return: true when message can be encoded in 7 bits, otherwise returns false
+        :param text: optional argument - text for checking, when not specified whole sms text will be checked
+        :return: true when text can be encoded in 7 bits, otherwise returns false
         """
-        return all(ord(c) < 128 for c in self.smsText)
 
-    def __encodeMessageIn7Bits(self):
+        if text is None:
+            return all(ord(c) < 128 for c in self.smsText)
+
+        return all(ord(c) < 128 for c in text)
+
+    @staticmethod
+    def __encodeMessageIn7Bits(text):
         """
-        Encodes ASCII message in 7 bit's encoding. So, each 8 symbols of message will be encoded in 7
-        :return: encoded message
+        Encodes ASCII text message block with 7 bit's encoding. So, each 8 symbols of message will be encoded in 7 bytes
+
+        :param text: text for encoding
+        :return: 7-bit encoded message
         """
-        data = bytearray(self.smsText.encode("ascii"))
+
+        data = bytearray(text.encode("ascii"))
 
         #encoding
         i = 1
@@ -208,22 +217,41 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         # 'hellohello' must be encoded as "E8329BFD4697D9EC37"
         return binascii.hexlify(data).decode("ascii").upper()
 
-    def __encodeMessageAsUcs(self):
+    def __encodeMessageAsUcs2(self, text):
         """
-        Encodes message with UCS2
+        Encodes message with UCS2 encoding
 
+        :param text: text for encoding
         :return: UCS2 encoded message
         """
-        d = binascii.hexlify(self.smsText.encode("utf-16-be"))
-        return  d.decode("ascii").upper()
 
+        try:
+            d = binascii.hexlify(text.encode("utf-16-be"))
+            return d.decode("ascii").upper()
+        except Exception as e:
+            self.setError("error encoding text: {0}".format(e))
 
-    def __compilePduTypePart(self):
+            return None
+
+    def __compilePduTypePart(self, isMultupartMessage):
         """
-        Returns PDU Type part
+        Returns PDU Type part.
 
-        :return: pdu type
+        :param isMultupartMessage: must be true when message is multupart
+        :return: encoded PDU-Type
         """
+
+        #returning PDU-Type when validation period is not specified
+        if self.__validationPeriod is None:
+            if not isMultupartMessage:
+                return "01"
+
+            return "41"
+
+        #special value when multi-part message
+        if isMultupartMessage:
+            return "51"
+
         return "11"
 
     def __compilePduTpVpPart(self):
@@ -279,7 +307,7 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         self.__validationPeriod = self.__byteToHex(count + 144)
         return True
 
-    def setDaysValidationPeriod(self, value):
+    def setValidationPeriodInDays(self, value):
         """
         Can set message validation period in days (2-30 days)
 
@@ -313,7 +341,7 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         self.__validationPeriod = self.__byteToHex(value + 197)
         return True
 
-    def __compileTpdu(self):
+    def __compileTpdu(self, pieceNumber, totalPiecesCount, pieceText, messageId = None):
         """
         Compiles TPDU part of PDU message request.
         :return: compiled TPDU
@@ -322,16 +350,25 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         # PDU-Type is the same as SMS-SUBMIT-PDU
 
         ret = ""
-        #adding PDU-Type
-        ret += self.__compilePduTypePart()
+        #checking that message have more than one part
+        isMultipartMessage = totalPiecesCount > 1
 
-        #adding TP-MR (TP-Message-Reference). The "00" value here lets the phone set the message reference number itself.
-        ret += "00"
+        #adding PDU-Type
+        ret += self.__compilePduTypePart(isMultipartMessage)
+
+        #adding TP-MR (TP-Message-Reference).
+        ret += self.__byteToHex(pieceNumber+100)
+        # if totalPiecesCount > 1:
+        #     #setting message reference manually
+        #     ret += self.__byteToHex(pieceNumber)
+        # else:
+        #     #The "00" value here lets the phone set the message reference number itself.
+        #     ret += "00"
 
         #encoding TP-DA (TP-Destination-Address - recipient address)
         ret += self.__byteToHex(self.__clientPhoneNumberLength(self.smsRecipientNumber)) + "91" + self.__encodePhoneNumber(self.smsRecipientNumber)
 
-        #adding TP- PID (TP-Protocol ID)
+        #adding TP-PID (TP-Protocol ID)
         ret += "00"
 
         #adding TP-DCS (TP-Data-Coding-Scheme)
@@ -345,7 +382,6 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         #checking that message CAN be encoded in 7 bits encoding
         canBe7BitsEncoded = self.__canUse7BitsEncoding()
 
-        tpDcs = ""
         if canBe7BitsEncoded:
             tpDcs = "00"
         else:
@@ -356,38 +392,120 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
 
         ret += tpDcs
 
-        #adding TP-VP (TP-Validity-Period)
-        ret += self.__compilePduTpVpPart()
+        #adding TP-VP (TP-Validity-Period) is it's specified
+        if self.__validationPeriod is not None:
+            ret += self.__compilePduTpVpPart()
 
-        #encoding message
+        #encoding message (7-bit or UCS2)
         if canBe7BitsEncoded:
-            encodedMessage = self.__encodeMessageIn7Bits()
+            encodedMessage = self.__encodeMessageIn7Bits(pieceText)
         else:
-            encodedMessage = self.__encodeMessageAsUcs()
+            encodedMessage = self.__encodeMessageAsUcs2(pieceText)
 
+        #checking that message was encoded correctly
         if encodedMessage is None:
-            self.setError("error encoding message")
+            self.setError("error encoding message: {0}".format(self.errorText))
             return None
 
         #adding TP-UDL (TP-User-Data-Length - message length)
-        if canBe7BitsEncoded:
-            #adding TEXT LENGTH IN SYMBOLS
-            ret += self.__byteToHex(len(self.smsText))
+        if not isMultipartMessage:
+            if canBe7BitsEncoded:
+                #adding TEXT LENGTH IN SYMBOLS
+                ret += self.__byteToHex(len(self.smsText))
+            else:
+                ret += self.__byteToHex(len(encodedMessage)//2)
         else:
-            ret += self.__byteToHex(len(encodedMessage)//2)
+            if canBe7BitsEncoded:
+                ret += self.__byteToHex(len(pieceText) + 8)
+            else:
+                ret += self.__byteToHex(len(encodedMessage)//2 + 6)
+
+        #adding UDHL + UDH for multipart messages
+        if isMultipartMessage:
+            if canBe7BitsEncoded:
+                #length of UDH
+                udhl = bytearray([0x06])
+
+                #UDI IED entry type
+                iei  = bytearray([0x08])
+
+                #length of UDH IED
+                iedl = bytearray([0x04])
+
+                # messageId
+                ied1Lo = messageId & 0xff
+                ied1Hi = ((messageId & 0xff00) >> 8)
+                ied1 = bytearray([ied1Hi, ied1Lo])
+
+                #total pieces count
+                ied2 = bytearray([totalPiecesCount])
+
+                #piece number
+                ied3 = bytearray([pieceNumber])
+
+                #compiling IED
+                ied  = ied1 + ied2 + ied3
+
+                #compiling UDH
+                udh  = iei + iedl + ied
+            else:
+                #length of UDH
+                udhl = bytearray([0x05])
+
+                #UDI IED entry type
+                iei  = bytearray([0x00])
+
+                #length of UDH IED
+                iedl = bytearray([0x03])
+
+                #message id
+                ied1Lo = messageId & 0xff
+                ied1 = bytearray([ied1Lo])
+
+                #total pieces count
+                ied2 = bytearray([totalPiecesCount])
+
+                #piece number
+                ied3 = bytearray([pieceNumber])
+
+                #compiling IED
+                ied  = ied1 + ied2 + ied3
+
+                #compiling UDH
+                udh  = iei + iedl + ied
+
+            cudh = binascii.hexlify(udhl + udh).decode("ascii").upper()
+            print("cudh = '{0}'".format(cudh))
+
+            ret += cudh
 
         #adding TP-UD (TP-User-Data - SMS message encoded as described in TP-DCS)
         ret += encodedMessage
         return ret
 
-    def compile(self):
-        """
-        Compiles PDU request (SCA + TPDU)
+    def messagesCount(self):
+        if self.__canUse7BitsEncoding():
+            symbolsCount = len(self.smsText)
 
-        :return: SMS request in PDU format
-        """
+            if symbolsCount <= 160:
+                return 1
 
-        return (self.__compileScaPart(), self.__compileTpdu())
+            messagesCount = symbolsCount // 152
+            if symbolsCount % 152:
+                messagesCount += 1
+
+            return messagesCount
+        else:
+            symbolsCount = len(self.smsText)
+
+            if symbolsCount <= 70:
+                return 1
+
+            messagesCount = symbolsCount // 67
+            if symbolsCount % 67:
+                messagesCount += 1
+
+            return messagesCount
 
     @staticmethod
     def __byteToHex(value):
@@ -398,6 +516,41 @@ class SimSmsPduCompiler(AminisLastErrorHolder):
         :return: encoded value
         """
         return "{:02X}".format(value)
+
+    def compile(self):
+        """
+        Compiles PDU request (SCA + TPDU)
+
+        :return: SMS request in PDU format
+        """
+        ret = []
+
+        symbolsCount    = len(self.smsText)
+        msgCount        = self.messagesCount()
+        isUcs2          = not self.__canUse7BitsEncoding()
+
+        if isUcs2:
+            symbolsInPiece = 67
+        else:
+            symbolsInPiece = 152
+
+        #generating message id for multi-part messages
+        messageId = None
+        if msgCount > 1:
+            messageId = random.randint(0, 65535)
+
+        for i in range(msgCount):
+
+            if msgCount == 1:
+                textPiece = self.smsText
+            else:
+                minIndex = i * symbolsInPiece
+                maxIndex = (minIndex + symbolsInPiece) if (minIndex + symbolsInPiece) < symbolsCount else (symbolsCount)
+                textPiece = self.smsText[minIndex : maxIndex]
+
+            ret += [(self.__compileScaPart(), self.__compileTpdu(i+1, msgCount, textPiece, messageId),)]
+
+        return ret
 
 class SimGsmSmsHandler(SimGsm):
     def __init__(self, port, logger):
@@ -443,9 +596,7 @@ class SimGsmSmsHandler(SimGsm):
         self.setError("error sending sms...")
         return False
 
-    def sendPduMessage(self, pduHelper, numberOfAttempts = 3):
-        (sca, pdu) = pduHelper.compile()
-
+    def __sendPduMessageLow(self, sca, pdu, numberOfAttempts = 3):
         tuneCommands = [
             ["AT+CSCS=\"GSM\"",     500],
             # ["AT+CMGS?",            500], #checking that sms supported
@@ -482,3 +633,21 @@ class SimGsmSmsHandler(SimGsm):
 
         return False
 
+
+    def sendPduMessage(self, pduHelper, numberOfAttempts = 3):
+        d = pduHelper.compile()
+        if d is None:
+            self.setError("error compiling PDU sms")
+            return False
+
+        piece = 1
+        for (sca, pdu,) in d:
+            self.logger.info("sendSms(): sca + pdu = \"{0}\"".format(sca + pdu))
+            if not self.__sendPduMessageLow(sca, pdu, numberOfAttempts):
+                return False
+
+
+            self.logger.info("Sending result = {0}".format(self.sendingResult))
+
+
+        return True
