@@ -5,15 +5,19 @@ import time
 class AminisLastErrorHolder:
     def __init__(self):
         self.errorText  = ""
-        self.hasError   = False
+        self.__hasError = False
 
     def clearError(self):
         self.errorText  = ""
-        self.hasError   = False
+        self.__hasError = False
 
     def setError(self, errorText):
-        self.errorText = errorText
-        self.hasError  = True
+        self.errorText  = errorText
+        self.__hasError = True
+
+    @property
+    def hasError(self):
+        return self.__hasError
 
 def timeDelta(timeBegin):
     end     = time.time()
