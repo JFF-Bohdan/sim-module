@@ -1,5 +1,6 @@
 from test_shared import *
 from lib.sim900.smshandler import SimGsmSmsHandler, SimSmsPduCompiler
+import random
 
 COMPORT_NAME            = "com22"
 
@@ -17,12 +18,16 @@ SMS_CENTER_NUMBER       = ""
 
 def printScaPlusPdu(pdu, logger):
     #printing SCA+PDU just for debug
-    (sca, pdu) = pdu.compile()
-    logger.info("sendSms(): sca + pdu = \"{0}\"".format(sca + pdu))
+    d = pdu.compile()
+    if d is None:
+        return False
+
+    for (sca, pdu, ) in d:
+        logger.info("sendSms(): sca + pdu = \"{0}\"".format(sca + pdu))
 
 def sendSms(sms, pdu, logger):
+    #just for debug printing all SCA + PDU parts
     printScaPlusPdu(pdu, logger)
-
 
     if not sms.sendPduMessage(pdu, 1):
         logger.error("error sending SMS: {0}".format(sms.errorText))
@@ -71,6 +76,32 @@ def main():
         TARGET_PHONE_NUMBER,
         "Test message, тестовое сообщение"
     )
+    if not sendSms(sms, pduHelper, logger):
+        return False
+
+    #long UCS2 message
+    logger.info("sending long UCS2 (Unicode) SMS")
+    pduHelper = SimSmsPduCompiler(
+        SMS_CENTER_NUMBER,
+        TARGET_PHONE_NUMBER,
+        "Це час, коли із затінку гілок "
+        "Лунає дзвінко пісня солов'я. "
+        "Це час, коли закохані шепочуть "
+        "Такі солодкі клятви і слова. "
+        "І хлюпіт річки, й ніжний трепет вітерця "
+        "Звучить як музика в покинутих серцях. "
+        "І кожну квітку приголубила роса, "
+        "І зорі пострічались в небесах, "
+        "І в хвилях зупинилася блакить, "
+        "І на листочках тьмяна барва спить. "
+        "А в небі загадкова невідомість "
+        "Так ніжно-темна й лагідно-прозора, "
+        "Що настає, як день згаса привітний, "
+        "І тануть сутінки у місячному світлі."
+    )
+
+    pduHelper.setValidationPeriodInDays(10)
+
     if not sendSms(sms, pduHelper, logger):
         return False
 
