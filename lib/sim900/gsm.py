@@ -191,7 +191,7 @@ class SimGsmSerialPortHandler(AminisLastErrorHolderWithLogging):
 
                 receivedBytesQty = 0
                 while True:
-                    bytesToRead = 10 if ((len(buffer) - bytesCount) >= 10) else 1
+                    bytesToRead = 10 if ((bytesCount - len(buffer)) >= 10) else 1
                     b = self.__serial.read(bytesToRead)
 
                     if (b is None) or (len(b) == 0):
