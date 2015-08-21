@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from test_shared import *
 from lib.sim900.ussdhandler import SimUssdHandler
 import re

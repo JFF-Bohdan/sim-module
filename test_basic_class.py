@@ -1,6 +1,6 @@
+#!/usr/bin/python3
 import logging
-from test_shared import initializeUartPort, initializeLogs
-from lib.sim900.gsm import SimGsm
+from test_shared import *
 
 COMPORT_NAME            = "com22"
 

@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from test_shared import *
 
 COMPORT_NAME            = "com22"
