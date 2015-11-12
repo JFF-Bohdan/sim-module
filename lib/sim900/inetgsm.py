@@ -418,7 +418,7 @@ class SimInetGSM(SimGsm):
         :param path: path to the script
         :param parameters: POST parameters
         :param bearerChannel: bearer channel number
-        :return: true if operation was successfully finished. Otherwise returns false
+        :return: True if operation was successfully finished. Otherwise returns False
         """
 
         self.__clearHttpResponse()
