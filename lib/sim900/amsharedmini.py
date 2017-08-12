@@ -20,11 +20,7 @@ class AminisLastErrorHolder:
         return self.__hasError
 
 def timeDelta(timeBegin):
-    end     = time.time()
-    secs    = end - timeBegin
-    msecs   = (end - timeBegin) * 1000.0
-
-    return secs*1000 + msecs
+    return (time.time() - timeBegin) * 1000.0
 
 def splitAndFilter(value, separator):
     items = str(value).split(separator)
